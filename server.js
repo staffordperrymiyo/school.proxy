@@ -3,7 +3,7 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 
-const targetUrl = 'https://www.roblox.com';
+const targetUrl = 'https://wyvern.ngrok.io';
 
 app.use(
   '/',
