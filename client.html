@@ -23,6 +23,14 @@
       border: none;
       margin-top: 20px;
     }
+    .console {
+      margin-top: 20px;
+      background-color: #f9f9f9;
+      padding: 10px;
+      border: 1px solid #ccc;
+      height: 200px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -34,14 +42,24 @@
   </form>
 
   <iframe id="iframe" style="display:none"></iframe>
+  <div class="console" id="consoleOutput"></div>
 
   <script>
+    function logToConsole(message) {
+      const consoleOutput = document.getElementById('consoleOutput');
+      const messageElement = document.createElement('div');
+      messageElement.textContent = message;
+      consoleOutput.appendChild(messageElement);
+      consoleOutput.scrollTop = consoleOutput.scrollHeight; // Auto-scroll to the bottom
+    }
+
     document.getElementById('urlForm').addEventListener('submit', function(event) {
       event.preventDefault();
 
       const url = document.getElementById('urlInput').value;
       if (!url) {
         alert('Please enter a URL.');
+        logToConsole('Error: No URL entered.');
         return;
       }
 
@@ -54,9 +72,28 @@
       })
       .then(response => response.text())
       .then(html => {
+        logToConsole('Successfully fetched HTML from the URL.');
 
         const iframe = document.getElementById('iframe');
         const doc = iframe.contentDocument || iframe.contentWindow.document;
+        
+        // Overwrite the console.log and console.error methods
+        const script = document.createElement('script');
+        script.innerHTML = `
+          const originalLog = console.log;
+          console.log = function(message) {
+            window.parent.postMessage({ type: 'log', message: message }, '*');
+            originalLog.apply(console, arguments);
+          };
+
+          const originalError = console.error;
+          console.error = function(message) {
+            window.parent.postMessage({ type: 'error', message: message }, '*');
+            originalError.apply(console, arguments);
+          };
+        `;
+        doc.head.appendChild(script);
+        
         doc.open();
         doc.write(html);
         doc.close();
@@ -64,8 +101,17 @@
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Failed to load the page.');
+        logToConsole('Failed to load the page. Error: ' + error.message);
       });
+    });
+
+    // Listen for messages from the iframe
+    window.addEventListener('message', function(event) {
+      if (event.data.type === 'log') {
+        logToConsole('LOG: ' + event.data.message);
+      } else if (event.data.type === 'error') {
+        logToConsole('ERROR: ' + event.data.message);
+      }
     });
   </script>
 
